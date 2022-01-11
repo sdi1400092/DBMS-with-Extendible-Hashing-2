@@ -14,7 +14,7 @@ extern "C" {
   BF_ErrorCode code = call; \
   if (code != BF_OK) {         \
     BF_PrintError(code);    \
-    return HP_ERROR;        \
+    return HΤ_ERROR;        \
   }                         \
 }
 
