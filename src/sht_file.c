@@ -8,35 +8,26 @@
 
 #define MAX_SIZE_OF_BUCKET 2*BF_BLOCK_SIZE
 
-#define CALL_BF(call)       \
-{                           \
-  BF_ErrorCode code = call; \
-  if (code != BF_OK) {         \
-    BF_PrintError(code);    \
-    return HP_ERROR;        \
-  }                         \
-}
-
 //#ifndef HASH_FILE_H
 #define HASH_FILE_H
 
 
-typedef enum HT_ErrorCode {
-  HT_OK,
-  HT_ERROR
-} HT_ErrorCode;
+// typedef enum HT_ErrorCode {
+//   HT_OK,
+//   HT_ERROR
+// } HT_ErrorCode;
 
-typedef struct Record {
-	int id;
-	char name[15];
-	char surname[20];
-	char city[20];
-} Record;
+// typedef struct Record {
+// 	int id;
+// 	char name[15];
+// 	char surname[20];
+// 	char city[20];
+// } Record;
 
-typedef struct{
-char index_key[20];
-int tupleId;  /*Ακέραιος που προσδιορίζει το block και τη θέση μέσα στο block στην οποία     έγινε η εισαγωγή της εγγραφής στο πρωτεύον ευρετήριο.*/ 
-}SecondaryRecord;
+// typedef struct{
+// char index_key[20];
+// int tupleId;  /*Ακέραιος που προσδιορίζει το block και τη θέση μέσα στο block στην οποία     έγινε η εισαγωγή της εγγραφής στο πρωτεύον ευρετήριο.*/ 
+// }SecondaryRecord;
 
 typedef struct {
   int *HashCode;
@@ -62,15 +53,19 @@ int power(int base, int exp){
   return result;
 }
 
-int Open_files[MAX_OPEN_FILES];
+typedef struct{
+  char *primary_index_name;
+  int indexdesc;
+}Info;
+
+Info Open_files[MAX_OPEN_FILES];
 
 HT_ErrorCode SHT_Init() {
   //insert code here
   int i;
   for(i=0;i<MAX_OPEN_FILES;i++){
-    Open_files[i]=-1;   
-  } 
-  return HT_OK;
+    Open_files[i].indexdesc =-1;  
+  }
   return HT_OK;
 }
 
@@ -95,15 +90,16 @@ HT_ErrorCode SHT_CreateSecondaryIndex(const char *sfileName, char *attrName, int
       n=n/2;
     }
   }
+  Open_files[0].primary_index_name= fileName;
   //giving starting values to HashTable
   SHT->global_depth = depth;
   SHT->max_buckets= (BF_BLOCK_SIZE-(4*sizeof(int)))/sizeof(buckets);
 
   //opens file and allocates one block for the directory
-  CALL_BF(BF_OpenFile(sfileName, &file_desc));
+  CALL_OR_DIE(BF_OpenFile(sfileName, &file_desc));
   BF_Block *temp_block;
   BF_Block_Init(&temp_block);
-  CALL_BF(BF_AllocateBlock(file_desc, temp_block));
+  CALL_OR_DIE(BF_AllocateBlock(file_desc, temp_block));
   int block_num;
   data = BF_Block_GetData(temp_block);
 
@@ -111,12 +107,12 @@ HT_ErrorCode SHT_CreateSecondaryIndex(const char *sfileName, char *attrName, int
   BF_Block *temp_block2;
   BF_Block_Init(&temp_block2);
   for(i=0;i<power(2,depth);i++){ 
-    CALL_BF(BF_AllocateBlock(file_desc, temp_block2));
-    CALL_BF(BF_GetBlockCounter(file_desc,&block_num));
+    CALL_OR_DIE(BF_AllocateBlock(file_desc, temp_block2));
+    CALL_OR_DIE(BF_GetBlockCounter(file_desc,&block_num));
     SHT->bucket[i].number_of_block= block_num -1;
     //setting the blocks for the buckets dirty and upnin them
     BF_Block_SetDirty(temp_block2);
-    CALL_BF(BF_UnpinBlock(temp_block2));
+    CALL_OR_DIE(BF_UnpinBlock(temp_block2));
 
       //copying the directory to the first block of the file
   memcpy(data, &(SHT->global_depth), sizeof(int));
@@ -131,10 +127,10 @@ HT_ErrorCode SHT_CreateSecondaryIndex(const char *sfileName, char *attrName, int
   }
   //setting dirty that block and upnining it
   BF_Block_SetDirty(temp_block);
-  CALL_BF(BF_UnpinBlock(temp_block));
+  CALL_OR_DIE(BF_UnpinBlock(temp_block));
 
   printf("File: %s is created\n", sfileName);
-  CALL_BF(BF_CloseFile(file_desc));
+  CALL_OR_DIE(BF_CloseFile(file_desc));
   free(SHT->bucket);
   free(SHT);
   }
@@ -145,11 +141,11 @@ HT_ErrorCode SHT_OpenSecondaryIndex(const char *sfileName, int *indexDesc  ) {
   //insert code here
   int i;
   int temp;
-  CALL_BF(BF_OpenFile(fileName,&temp));
+  CALL_OR_DIE(BF_OpenFile(sfileName,&temp));
   *indexDesc=temp;
   for(i=0 ; i < MAX_OPEN_FILES ; i++){
-    if(Open_files[i] == -1){
-      Open_files[i] = *indexDesc;
+    if(Open_files[i].indexdesc == -1){
+      Open_files[i].indexdesc = *indexDesc;
       break;
     }
   }
@@ -160,11 +156,11 @@ HT_ErrorCode SHT_CloseSecondaryIndex(int indexDesc) {
   //insert code here
   int i;
   for(i=0;i<MAX_OPEN_FILES;i++){
-    if (Open_files[i]=indexDesc){
-      Open_files[i]=-1;
+    if (Open_files[i].indexdesc =indexDesc){
+      Open_files[i].indexdesc =-1;
     }
   }
-  CALL_BF(BF_CloseFile(indexDesc));
+  CALL_OR_DIE(BF_CloseFile(indexDesc));
   return HT_OK;
 }
 
@@ -178,7 +174,7 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
   return HT_OK;
 }
 
-HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index-key ) {
+HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
   //insert code here
   return HT_OK;
 }
@@ -188,10 +184,10 @@ HT_ErrorCode SHT_HashStatistics(char *filename ) {
   return HT_OK;
 }
 
-HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index-key ) {
+HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) {
   //insert code here
   return HT_OK;
 }
 
 
-#endif // HASH_FILE_H
+// #endif // HASH_FILE_H

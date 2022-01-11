@@ -1,4 +1,4 @@
-#ifndef HASH_FILE_H
+//#ifndef HASH_FILE_H
 #define HASH_FILE_H
 
 typedef enum HT_ErrorCode {
@@ -69,4 +69,4 @@ HT_ErrorCode HT_PrintAllEntries(
 	);
 
 
-#endif // HASH_FILE_H
+//#endif // HASH_FILE_H
