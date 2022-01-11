@@ -62,6 +62,5 @@ const char* cities[] = {
   }
 
 int main() {
-  printf("HI\n");
 
 }

@@ -54,7 +54,7 @@ typedef struct {
 }Secondary_Directory;
 
 //power calculates the x^y expression 
-int power(int base, int exp){
+int Power(int base, int exp){
   int result = 1;
   while(exp!=0){
     result *= base;
@@ -88,8 +88,8 @@ HT_ErrorCode SHT_CreateSecondaryIndex(const char *sfileName, char *attrName, int
   Secondary_Directory *SHT;
   SHT = (Secondary_Directory *) malloc(sizeof(Secondary_Directory));
   //allocating space for 2^depth buckets
-  SHT->bucket = (buckets *) malloc(power(2,depth)*sizeof(buckets));
-  for(i=0;i<power(2,depth);i++){
+  SHT->bucket = (buckets *) malloc(Power(2,depth)*sizeof(buckets));
+  for(i=0;i<Power(2,depth);i++){
     //gives starting values to every bucket
     SHT->bucket[i].local_depth = depth;
     SHT->bucket[i].maxSize = MAX_SIZE_OF_BUCKET/(sizeof(struct Record));
@@ -117,7 +117,7 @@ HT_ErrorCode SHT_CreateSecondaryIndex(const char *sfileName, char *attrName, int
   //allocates one block for every bucket
   BF_Block *temp_block2;
   BF_Block_Init(&temp_block2);
-  for(i=0;i<power(2,depth);i++){ 
+  for(i=0;i<Power(2,depth);i++){ 
     CALL_BF(BF_AllocateBlock(file_desc, temp_block2));
     CALL_BF(BF_GetBlockCounter(file_desc,&block_num));
     SHT->bucket[i].number_of_block= block_num -1;
@@ -129,12 +129,12 @@ HT_ErrorCode SHT_CreateSecondaryIndex(const char *sfileName, char *attrName, int
   memcpy(data, &(SHT->global_depth), sizeof(int));
   memcpy(data+sizeof(int), &(SHT->max_buckets), sizeof(int));
   int x;
-  x = power(2, SHT->global_depth);
+  x = Power(2, SHT->global_depth);
   memcpy(data+2*sizeof(int), &x, sizeof(int)); //x is the number of how many buckets are stored in the block
   x = -1;
   memcpy(data+3*sizeof(int), &x, sizeof(int)); //here x is the number of the next block if its -1 it means there's no next block
   memcpy(data+4*sizeof(int), &SHT->name_of_primary_index, sizeof(SHT->name_of_primary_index));
-  for( i=0;i<power(2,SHT->global_depth);i++){
+  for( i=0;i<Power(2,SHT->global_depth);i++){
     memcpy(data+4*sizeof(int)+(sizeof(SHT->name_of_primary_index))+(i*sizeof(buckets)),&(SHT->bucket[i]),sizeof(buckets));
   }
   //setting dirty that block and upnining it
@@ -157,8 +157,8 @@ HT_ErrorCode SHT_OpenSecondaryIndex(const char *sfileName, int *indexDesc  ) {
   BF_Block *temp_block;
   BF_Block_Init(&temp_block);
   BF_GetBlock(*indexDesc,0,temp_block);
-  char * data;
-  data= BF_GET_DATA(temp_block);
+  char *data;
+  data= BF_Block_GetData(temp_block);
   char fileName[20];
   memcpy(&fileName,data+4*(sizeof(int)),20*sizeof(char));
   for(i=0 ; i < MAX_OPEN_FILES ; i++){

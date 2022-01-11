@@ -320,7 +320,7 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
 }
 
 //a function responsible for inserting an entry at the file via the directory
-HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
+HT_ErrorCode HT_InsertEntry(int indexDesc, Record record, int *tuppleid, UpdateRecordArray **updateArray) {
   //insert code here
   int *hashing, i, offset;
   char *data, *data2;
@@ -358,7 +358,10 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     BF_Block_SetDirty(block);
     CALL_BF(BF_UnpinBlock(block));
     HT->bucket[i].number_of_registries++;
-
+    int blockId=HT->bucket[i].number_of_block;
+    int num_of_rec_in_block= HT->bucket[i].maxSize;
+    int index_of_rec_in_block= offset;
+    *tuppleid=((blockId+1)*num_of_rec_in_block)+index_of_rec_in_block;
     //after updating the directory we store the updated one in the memory
     updateDirectory(HT, indexDesc);
 
@@ -415,9 +418,12 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     //call the insert recursively to reorganize the existing registries of the bucket that got splited
     Record *temp_record;
     temp_record = (Record *) malloc(sizeof(Record));
+    updateArray=malloc(sizeof(x));
     for(int j=0 ; j<x ; j++){
       memcpy(temp_record, data2 + j*sizeof(struct Record), sizeof(struct Record));
-      HT_InsertEntry(indexDesc, *temp_record);
+      int *temp;
+      HT_InsertEntry(indexDesc, *temp_record, &temp,&updateArray);
+      strcpy(&(updateArray[j]).surname,temp_record->surname);
     }
     free(temp_record);
     //call insert one last time for the original registry
