@@ -1,7 +1,7 @@
-#ifndef HASH_FILE_H
-#define HASH_FILE_H
+#ifndef SHT_FILE_H
+#define SHT_FILE_H
 
-#include "hash_file.h"
+// #include "hash_file.h"
 
 typedef enum HT_ErrorCode {
   HT_OK,
