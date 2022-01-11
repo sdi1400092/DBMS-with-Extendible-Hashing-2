@@ -16,7 +16,7 @@
   BF_ErrorCode code = call; \
   if (code != BF_OK) {         \
     BF_PrintError(code);    \
-    return HΤ_ERROR;        \
+    return HT_ERROR;        \
   }                         \
 }
 
@@ -37,14 +37,6 @@
 // int tupleId;  /*Ακέραιος που προσδιορίζει το block και τη θέση μέσα στο block στην οποία     έγινε η εισαγωγή της εγγραφής στο πρωτεύον ευρετήριο.*/ 
 // }SecondaryRecord;
 
-#define CALL_BF(call)       \
-{                           \
-  BF_ErrorCode code = call; \
-  if (code != BF_OK) {         \
-    BF_PrintError(code);    \
-    return HΤ_ERROR;        \
-  }                         \
-}
 
 typedef struct {
   int *HashCode;
