@@ -4,6 +4,7 @@
 
 #include "bf.h"
 #include "hash_file.h"
+#include "sht_file.h"
 #define MAX_OPEN_FILES 20
 #define MAX_SIZE_OF_BUCKET BF_BLOCK_SIZE
 
@@ -418,16 +419,20 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record, int *tuppleid, UpdateR
     //call the insert recursively to reorganize the existing registries of the bucket that got splited
     Record *temp_record;
     temp_record = (Record *) malloc(sizeof(Record));
-    updateArray=malloc(sizeof(x));
+    UpdateRecordArray *tempRecordArray;
+    tempRecordArray = (UpdateRecordArray *) malloc(x * sizeof(UpdateRecordArray));
+    int *temp;
     for(int j=0 ; j<x ; j++){
       memcpy(temp_record, data2 + j*sizeof(struct Record), sizeof(struct Record));
-      int *temp;
-      HT_InsertEntry(indexDesc, *temp_record, &temp,&updateArray);
-      strcpy(&(updateArray[j]).surname,temp_record->surname);
+      HT_InsertEntry(indexDesc, *temp_record, temp, updateArray);
+      strcpy(tempRecordArray[j].surname, temp_record->surname);
+      tempRecordArray[j].oldTupleId = ((HT->bucket[i].number_of_block + 1)*HT->bucket[i].maxSize) + j;
+      tempRecordArray[j].newTupleId = *temp;
     }
+    *updateArray = tempRecordArray;
     free(temp_record);
     //call insert one last time for the original registry
-    HT_InsertEntry(indexDesc, record);
+    HT_InsertEntry(indexDesc, record, tuppleid, updateArray);
   }
 
   BF_Block_SetDirty(block);

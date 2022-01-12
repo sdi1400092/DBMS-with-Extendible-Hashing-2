@@ -1,17 +1,19 @@
 //#ifndef HASH_FILE_H
 #define HASH_FILE_H
 
-typedef enum HT_ErrorCode {
-  HT_OK,
-  HT_ERROR
-} HT_ErrorCode;
+#include "sht_file.h"
 
-typedef struct Record {
-	int id;
-	char name[15];
-	char surname[20];
-	char city[20];
-} Record;
+// typedef enum HT_ErrorCode {
+//   HT_OK,
+//   HT_ERROR
+// } HT_ErrorCode;
+
+// typedef struct Record {
+// 	int id;
+// 	char name[15];
+// 	char surname[20];
+// 	char city[20];
+// } Record;
 
 /*
  * Η συνάρτηση HT_Init χρησιμοποιείται για την αρχικοποίηση κάποιον δομών που μπορεί να χρειαστείτε. 
@@ -55,7 +57,9 @@ HT_ErrorCode HT_CloseFile(
  */
 HT_ErrorCode HT_InsertEntry(
 	int indexDesc,	/* θέση στον πίνακα με τα ανοιχτά αρχεία */
-	Record record		/* δομή που προσδιορίζει την εγγραφή */
+	Record record,		/* δομή που προσδιορίζει την εγγραφή */
+	int *,
+	UpdateRecordArray **
 	);
 
 /*
