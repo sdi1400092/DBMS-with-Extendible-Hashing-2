@@ -17,26 +17,26 @@
   }                         \
 }
 
-//a struct for the buckets
-//technically its a struct that stores info on the bucket and a point(number)
-//of the block the data is stored
-typedef struct {
-  int *HashCode;
-  int number_of_block; //με τη παραδοχη οτι 1 block = 1 καδος
-  int number_of_registries;
-  int local_depth;
-  int maxSize;
-}buckets;
+// //a struct for the buckets
+// //technically its a struct that stores info on the bucket and a point(number)
+// //of the block the data is stored
+// typedef struct {
+//   int *HashCode;
+//   int number_of_block; //με τη παραδοχη οτι 1 block = 1 καδος
+//   int number_of_registries;
+//   int local_depth;
+//   int maxSize;
+// }buckets;
 
-//a struct for the HashTable that consists of an array of buckets
-//the global depth of the table and max buckets is an assistant variable 
-//responsible for storing the max number of struct buckets that can be stored
-//in one block
-typedef struct {
-  buckets *bucket;
-  int global_depth;
-  int max_buckets;
-}HashTable;
+// //a struct for the HashTable that consists of an array of buckets
+// //the global depth of the table and max buckets is an assistant variable 
+// //responsible for storing the max number of struct buckets that can be stored
+// //in one block
+// typedef struct {
+//   buckets *bucket;
+//   int global_depth;
+//   int max_buckets;
+// }HashTable;
 
 //open files is an array of integers responsible for storing all the open files at any time
 int Open_files[MAX_OPEN_FILES];
