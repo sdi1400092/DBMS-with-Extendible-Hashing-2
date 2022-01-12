@@ -5,6 +5,7 @@
 #include "bf.h"
 #include "sht_file.h"
 
+
 #define MAX_OPEN_FILES 20
 #define MAX_SIZE_OF_BUCKET BF_BLOCK_SIZE
 
@@ -19,24 +20,6 @@
     return HT_ERROR;        \
   }                         \
 }
-
-// typedef enum HT_ErrorCode {
-//   HT_OK,
-//   HT_ERROR
-// } HT_ErrorCode;
-
-// typedef struct Record {
-// 	int id;
-// 	char name[15];
-// 	char surname[20];
-// 	char city[20];
-// } Record;
-
-// typedef struct{
-// char index_key[20];
-// int tupleId;  /*Ακέραιος που προσδιορίζει το block και τη θέση μέσα στο block στην οποία     έγινε η εισαγωγή της εγγραφής στο πρωτεύον ευρετήριο.*/ 
-// }SecondaryRecord;
-
 
 typedef struct {
   int *HashCode;
@@ -118,8 +101,6 @@ void HashFunction_bucket(int id, int depth, int **hashing){
   *hashing = binary;
 }
 
-//need to change update and get directory to include the secondary_directory.name_of_primary_index
-
 //a function that updates the existing directory in the blocks and allocates any new blocks that are needed
 //in case the existing ones area not enough for storing the whole directory
 HT_ErrorCode updateDirectory_SHT(Secondary_Directory *SHT, int indexdesc){
@@ -138,8 +119,9 @@ HT_ErrorCode updateDirectory_SHT(Secondary_Directory *SHT, int indexdesc){
     int i, num_of_buckets=Power(2,SHT->global_depth), num_of_next_block=-1;
     memcpy(data+2*sizeof(int), &(num_of_buckets), sizeof(int));
     memcpy(data+3*sizeof(int), &(num_of_next_block), sizeof(int));
+    memcpy(data+4*sizeof(int), SHT->name_of_primary_index, sizeof(SHT->name_of_primary_index));
     for( i=0;i<Power(2,SHT->global_depth);i++){
-      memcpy(data+4*sizeof(int)+(i*sizeof(buckets)),&(SHT->bucket[i]),sizeof(buckets));
+      memcpy(data+4*sizeof(int)+sizeof(SHT->name_of_primary_index)+(i*sizeof(buckets)),&(SHT->bucket[i]),sizeof(buckets));
     }
     BF_Block_SetDirty(tempBlock);
     CALL_BF(BF_UnpinBlock(tempBlock));
@@ -148,7 +130,7 @@ HT_ErrorCode updateDirectory_SHT(Secondary_Directory *SHT, int indexdesc){
     int i, counter = Power(2, SHT->global_depth);
     int offset = 0;
     for( i=0;i<SHT->max_buckets;i++){
-      memcpy(data+4*sizeof(int)+(i*sizeof(buckets)),&(SHT->bucket[offset]),sizeof(buckets));
+      memcpy(data+4*sizeof(int)+sizeof(SHT->name_of_primary_index)+(i*sizeof(buckets)),&(SHT->bucket[offset]),sizeof(buckets));
       counter--;
       offset++;
     }
@@ -163,7 +145,7 @@ HT_ErrorCode updateDirectory_SHT(Secondary_Directory *SHT, int indexdesc){
       CALL_BF(BF_GetBlock(indexdesc, x, tempBlock2));
       data2 = BF_Block_GetData(tempBlock2);
       for( i=0;i<SHT->max_buckets && counter>0 ; i++){
-        memcpy(data2+4*sizeof(int)+(i*sizeof(buckets)),&(SHT->bucket[offset]),sizeof(buckets));
+        memcpy(data2+4*sizeof(int)+sizeof(SHT->name_of_primary_index)+(i*sizeof(buckets)),&(SHT->bucket[offset]),sizeof(buckets));
         counter--;
         offset++;
       }
@@ -194,7 +176,7 @@ HT_ErrorCode updateDirectory_SHT(Secondary_Directory *SHT, int indexdesc){
         memcpy(data2+3*sizeof(int), &x, sizeof(int)); //x=number of next block
         int j=0;
         while(counter>0 && j<SHT->max_buckets){
-          memcpy(data2+4*sizeof(int)+(j*sizeof(buckets)), &(SHT->bucket[offset]), sizeof(buckets));
+          memcpy(data2+4*sizeof(int)+sizeof(SHT->name_of_primary_index)+(j*sizeof(buckets)), &(SHT->bucket[offset]), sizeof(buckets));
           counter--;
           offset++;
           j++;
@@ -223,12 +205,13 @@ void getDirectory_SHT(Secondary_Directory **SHT, int indexdesc){
   memcpy(&((*SHT)->global_depth), data, sizeof(int));
   memcpy(&((*SHT)->max_buckets), data+sizeof(int), sizeof(int));
   memcpy(&(number_of_buckets), data+2*sizeof(int), sizeof(int));
+  memcpy(&((*SHT)->name_of_primary_index), data+4*sizeof(int), sizeof((*SHT)->name_of_primary_index));
   (*SHT)->bucket = (buckets *) malloc(Power(2,(*SHT)->global_depth) * sizeof(buckets));
   int a=0;
   
   while(counter<Power(2, (*SHT)->global_depth)){
     for(int j=0 ; j<number_of_buckets ; j++){
-      memcpy(&((*SHT)->bucket[counter]), data+4*sizeof(int)+j*sizeof(buckets), sizeof(buckets));
+      memcpy(&((*SHT)->bucket[counter]), data+4*sizeof(int)+sizeof((*SHT)->name_of_primary_index)+j*sizeof(buckets), sizeof(buckets));
       HashFunction_bucket(counter,(*SHT)->global_depth,&((*SHT)->bucket[counter].HashCode));
       counter++;
       }
@@ -561,6 +544,16 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
   record = (Record *)malloc(sizeof(Record));
   CALL_BF(BF_GetBlock(sindexDesc, SHT->bucket[i].number_of_block, block));
   data = BF_Block_GetData(block);
+
+  for(int z=0 ; z<MAX_OPEN_FILES ; z++){
+    if(sindexDesc == Open_files[z].indexdesc){
+      filename = Open_files[z].primary_index_name;
+      break;
+    }
+  }
+      
+  BF_OpenFile(filename, indexDesc);
+
   for(int j=0 ; j<SHT->bucket[i].number_of_registries ; j++){
 
     memcpy(temp, data + (j*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
@@ -568,14 +561,7 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
     //calculate blockID and index_in_block here...
 
     if(temp->index_key == index_key){
-      for(int z=0 ; z<MAX_OPEN_FILES ; z++){
-        if(sindexDesc == Open_files[z].indexdesc){
-          filename = Open_files[z].primary_index_name;
-          break;
-        }
-      }
       
-      BF_OpenFile(filename, indexDesc);
 
       BF_GetBlock(*indexDesc, blockID, block2);
       data2 = BF_Block_GetData(block2);
@@ -585,6 +571,8 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
       BF_UnpinBlock(block2);
     }
   }
+
+  BF_CloseFile(*indexDesc);
   
   BF_UnpinBlock(block);
 
@@ -602,6 +590,33 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
 
 HT_ErrorCode SHT_HashStatistics(char *filename ) {
   //insert code here
+  int totalBlocks, *sindexDesc, blocknum;
+  char *data;
+  SecondaryRecord *record;
+  record = (SecondaryRecord *) malloc(sizeof(SecondaryRecord));
+  BF_Block *block;
+  BF_Block_Init(&block);
+  Secondary_Directory *SHT;
+  SHT = (Secondary_Directory *) malloc(sizeof(Secondary_Directory));
+
+  SHT_OpenSecondaryIndex(filename, sindexDesc);
+
+  CALL_BF(BF_GetBlockCounter(*sindexDesc, &blocknum));
+
+  printf("file %s has a total of %d blocks\n", filename, blocknum);
+
+  int min=100, max=0, sum=0;
+
+  for(int i=0 ; i<Power(2, SHT->global_depth) ; i++){
+    if(SHT->bucket[i].number_of_registries < min) min = SHT->bucket[i].number_of_registries;
+    if(SHT->bucket[i].number_of_registries > max) max = SHT->bucket[i].number_of_registries;
+    sum = sum + SHT->bucket[i].number_of_registries;
+  }
+  float avg;
+  avg = (double) (sum/Power(2, SHT->global_depth));
+  printf("Minimum registries in a bucket are: %d, Maximum are: %d and average are: %f\n", min, max, avg);
+
+
   return HT_OK;
 }
 
