@@ -510,7 +510,7 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
 
 HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
   //insert code here
-  int *hashing, i, blockID=1, index_in_block=0, *indexDesc, printed = 0;
+  int *hashing, i, blockID=1, index_in_block=0, indexDesc, printed = 0;
   char *data, *data2;
   Secondary_Directory *SHT;
   SHT = (Secondary_Directory *)malloc(sizeof(Secondary_Directory));
@@ -548,6 +548,9 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
     }
   }
 
+
+  CALL_BF(BF_OpenFile(SHT->name_of_primary_index, &indexDesc));
+
   for(int j=0 ; j<SHT->bucket[i].number_of_registries ; j++){
 
     memcpy(temp, data + (j*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
@@ -557,7 +560,7 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
     if(temp->index_key == index_key){
       
 
-      BF_GetBlock(*indexDesc, blockID, block2);
+      BF_GetBlock(indexDesc, blockID, block2);
       data2 = BF_Block_GetData(block2);
       memcpy(record, data2+(index_in_block*sizeof(Record)), sizeof(Record));
       PrintRecord(*record);
@@ -565,19 +568,23 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
       BF_UnpinBlock(block2);
     }
   }
+
+  CALL_BF(BF_CloseFile(indexDesc));
   
   BF_UnpinBlock(block);
+  BF_Block *temporary;
+  BF_Block_Init(&temporary);
   for(i=0 ; i<(Power(2,SHT->global_depth)) ; i++){
     printf("Number of block: %d, Number of registries: %d\n",SHT->bucket[i].number_of_block,SHT->bucket[i].number_of_registries);
   }
   for(i=0 ; i<(Power(2,SHT->global_depth)) ; i++){
     printf("I: %d\n",i);
-    BF_GetBlock(*indexDesc, SHT->bucket[i].number_of_block , block2);
-    data2 = BF_Block_GetData(block2);
+    BF_GetBlock(sindexDesc, SHT->bucket[i].number_of_block , temporary);
+    data2 = BF_Block_GetData(temporary);
     for(int j=0;j<SHT->bucket[i].number_of_registries;j++){
       printf("J: %d\n",j);
       memcpy(temp,data2+(j*sizeof(SecondaryRecord)),sizeof(SecondaryRecord));
-      printf("%s\n",temp->index_key);
+      printf("%d\n",temp->tupleId);
     }
   }
 
