@@ -70,7 +70,7 @@ void PrintRecord(Record record){
 }
 
 typedef struct{
-  char *primary_index_name;
+  char primary_index_name[20];
   int indexdesc;
 }Info;
 
@@ -229,7 +229,6 @@ HT_ErrorCode SHT_Init() {
   //insert code here
   int i;
   for(i=0;i<MAX_OPEN_FILES;i++){
-    Open_files[i].primary_index_name=NULL;
     Open_files[i].indexdesc =-1;  
   }
   return HT_OK;
@@ -247,7 +246,7 @@ HT_ErrorCode SHT_CreateSecondaryIndex(const char *sfileName, char *attrName, int
   for(i=0;i<Power(2,depth);i++){
     //gives starting values to every bucket
     SHT->bucket[i].local_depth = depth;
-    SHT->bucket[i].maxSize = MAX_SIZE_OF_BUCKET/(sizeof(struct Record));
+    SHT->bucket[i].maxSize = MAX_SIZE_OF_BUCKET/(sizeof(SecondaryRecord));
     SHT->bucket[i].number_of_registries = 0;
     n=i;
     SHT->bucket[i].HashCode =malloc(depth*sizeof(int));
@@ -317,17 +316,18 @@ HT_ErrorCode SHT_OpenSecondaryIndex(const char *sfileName, int *indexDesc  ) {
   char fileName[20];
   memcpy(&fileName,data+4*(sizeof(int)),20*sizeof(char));
   for(i=0 ; i < MAX_OPEN_FILES ; i++){
-    if(Open_files[i].primary_index_name == NULL){
-      strcpy(Open_files[i].primary_index_name,fileName);
-      break;
-    }
-  }
-  for(i=0 ; i < MAX_OPEN_FILES ; i++){
     if(Open_files[i].indexdesc == -1){
+      strcpy(Open_files[i].primary_index_name,fileName);
       Open_files[i].indexdesc = *indexDesc;
       break;
     }
   }
+  // for(i=0 ; i < MAX_OPEN_FILES ; i++){
+  //   if(Open_files[i].indexdesc == -1){
+  //     Open_files[i].indexdesc = *indexDesc;
+  //     break;
+  //   }
+  // }
   BF_UnpinBlock(temp_block);
   return HT_OK;
 }
@@ -337,7 +337,6 @@ HT_ErrorCode SHT_CloseSecondaryIndex(int indexDesc) {
   int i;
   for(i=0;i<MAX_OPEN_FILES;i++){
     if (Open_files[i].indexdesc =indexDesc){
-      Open_files[i].primary_index_name=NULL;
       Open_files[i].indexdesc =-1;
       break;
     }
@@ -470,38 +469,37 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
   BF_Block_Init(&block);
 
   getDirectory_SHT(&SHT, indexDesc);
-
   int z = 0;
-  while(updateArray[z].surname != NULL){
+  if(updateArray!=NULL){
+    while(updateArray[z].surname[0]!= '\0'){
+      HashFunction_SHT(updateArray[z].surname, SHT->global_depth, &hashing);
 
-    HashFunction_SHT(updateArray[z].surname, SHT->global_depth, &hashing);
-
-    //find in which bucket the record we want to insert should go
-    int counter;
-    for(i=0;i<(Power(2,SHT->global_depth));i++){
-      counter=0;
-      for(int j=0;j<(SHT->bucket[i].local_depth);j++){
-        if (SHT->bucket[i].HashCode[j]== hashing[j]){
-          counter++;
+      //find in which bucket the record we want to insert should go
+      int counter;
+      for(i=0;i<(Power(2,SHT->global_depth));i++){
+        counter=0;
+        for(int j=0;j<(SHT->bucket[i].local_depth);j++){
+          if (SHT->bucket[i].HashCode[j]== hashing[j]){
+            counter++;
+          }
+        }
+        if(counter == SHT->bucket[i].local_depth){
+          break;
         }
       }
-      if(counter == SHT->bucket[i].local_depth){
-        break;
+      CALL_BF(BF_GetBlock(indexDesc, SHT->bucket[i].number_of_block, block));
+      data2 = BF_Block_GetData(block);
+      for(int j=0 ; j<SHT->bucket[i].number_of_registries ; j++){
+        memcpy(&temp, data2+(j*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
+        if((temp.index_key == updateArray[z].surname) && (temp.tupleId = updateArray[z].oldTupleId)){
+          temp.tupleId = updateArray[z].newTupleId;
+          BF_Block_SetDirty(block);
+          break;
+        }
       }
+      CALL_BF(BF_UnpinBlock(block));
+      z++;
     }
-
-    CALL_BF(BF_GetBlock(indexDesc, SHT->bucket[i].number_of_block, block));
-    data2 = BF_Block_GetData(block);
-    for(int j=0 ; j<SHT->bucket[i].number_of_registries ; j++){
-      memcpy(&temp, data2+(j*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
-      if((temp.index_key == updateArray[z].surname) && (temp.tupleId = updateArray[z].oldTupleId)){
-        temp.tupleId = updateArray[z].newTupleId;
-        BF_Block_SetDirty(block);
-        break;
-      }
-    }
-    CALL_BF(BF_UnpinBlock(block));
-    z++;
   }
 
   free(SHT->bucket);
@@ -512,15 +510,13 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
 
 HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
   //insert code here
-  int *hashing, i, blockID, index_in_block, *indexDesc, printed = 0;
+  int *hashing, i, blockID=1, index_in_block=0, *indexDesc, printed = 0;
   char *data, *data2;
   Secondary_Directory *SHT;
   SHT = (Secondary_Directory *)malloc(sizeof(Secondary_Directory));
-
   getDirectory_SHT(&SHT, sindexDesc);
 
   HashFunction_SHT(index_key, SHT->global_depth, &hashing);
-
   int counter, block_num;
   for(i=0 ; i<(Power(2,SHT->global_depth)) ; i++){
     counter=0;
@@ -551,8 +547,6 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
       break;
     }
   }
-      
-  BF_OpenFile(filename, indexDesc);
 
   for(int j=0 ; j<SHT->bucket[i].number_of_registries ; j++){
 
@@ -571,10 +565,22 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
       BF_UnpinBlock(block2);
     }
   }
-
-  BF_CloseFile(*indexDesc);
   
   BF_UnpinBlock(block);
+  for(i=0 ; i<(Power(2,SHT->global_depth)) ; i++){
+    printf("Number of block: %d, Number of registries: %d\n",SHT->bucket[i].number_of_block,SHT->bucket[i].number_of_registries);
+  }
+  for(i=0 ; i<(Power(2,SHT->global_depth)) ; i++){
+    printf("I: %d\n",i);
+    BF_GetBlock(*indexDesc, SHT->bucket[i].number_of_block , block2);
+    data2 = BF_Block_GetData(block2);
+    for(int j=0;j<SHT->bucket[i].number_of_registries;j++){
+      printf("J: %d\n",j);
+      memcpy(temp,data2+(j*sizeof(SecondaryRecord)),sizeof(SecondaryRecord));
+      printf("%s\n",temp->index_key);
+    }
+  }
+
 
   free(record);
   free(temp);

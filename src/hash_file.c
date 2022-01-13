@@ -421,13 +421,13 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record, int *tuppleid, UpdateR
     temp_record = (Record *) malloc(sizeof(Record));
     UpdateRecordArray *tempRecordArray;
     tempRecordArray = (UpdateRecordArray *) malloc(x * sizeof(UpdateRecordArray));
-    int *temp;
+    int temp;
     for(int j=0 ; j<x ; j++){
       memcpy(temp_record, data2 + j*sizeof(struct Record), sizeof(struct Record));
-      HT_InsertEntry(indexDesc, *temp_record, temp, updateArray);
+      HT_InsertEntry(indexDesc, *temp_record, &temp, updateArray);
       strcpy(tempRecordArray[j].surname, temp_record->surname);
       tempRecordArray[j].oldTupleId = ((HT->bucket[i].number_of_block + 1)*HT->bucket[i].maxSize) + j;
-      tempRecordArray[j].newTupleId = *temp;
+      tempRecordArray[j].newTupleId = temp;
     }
     *updateArray = tempRecordArray;
     free(temp_record);
