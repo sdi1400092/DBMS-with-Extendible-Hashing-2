@@ -428,6 +428,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record, int *tuppleid, UpdateR
       strcpy(tempRecordArray[j].surname, temp_record->surname);
       tempRecordArray[j].oldTupleId = ((HT->bucket[i].number_of_block + 1)*HT->bucket[i].maxSize) + j;
       tempRecordArray[j].newTupleId = temp;
+      //printf("%d--->%d\n", tempRecordArray[j].oldTupleId, temp);
     }
     *updateArray = tempRecordArray;
     free(temp_record);

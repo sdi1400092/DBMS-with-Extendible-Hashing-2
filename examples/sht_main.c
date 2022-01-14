@@ -5,7 +5,7 @@
 #include "bf.h"
 #include "hash_file.h"
 
-#define RECORDS_NUM 85// you can change it if you want
+#define RECORDS_NUM 120// you can change it if you want
 #define GLOBAL_DEPT 2 // you can change it if you want
 #define FILE_NAME "data.db"
 
@@ -75,11 +75,12 @@ int main() {
 
   Record record;
   SecondaryRecord secondary_record;
-  UpdateRecordArray *update_record_array=NULL;
+  UpdateRecordArray *update_record_array;
   srand(12569874);
   int r,tuppleid;
   printf("Insert Entries\n");
   for (int id = 0; id < RECORDS_NUM; ++id) {
+    update_record_array = NULL;
     // create a record
     record.id = id;
     r = rand() % 12;
@@ -96,7 +97,11 @@ int main() {
     CALL_OR_DIE(SHT_SecondaryUpdateEntry(indexDesc_for_2nd_dir,update_record_array));
   }
 
-  CALL_OR_DIE(SHT_PrintAllEntries(indexDesc_for_2nd_dir,"Halatsis�"));
+  char name[20];
+  r = rand() % 12;
+  strcpy(name, surnames[r]);
+  printf("Finding records with name %s\n", name);
+  CALL_OR_DIE(SHT_PrintAllEntries(indexDesc_for_2nd_dir, name));
   //SHT_CloseSecondaryIndex(indexDesc_for_2nd_dir);
   //SHT_HashStatistics("dir");
 

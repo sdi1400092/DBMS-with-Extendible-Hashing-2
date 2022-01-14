@@ -384,6 +384,13 @@ HT_ErrorCode SHT_SecondaryInsertEntry (int indexDesc, SecondaryRecord record  ) 
     BF_Block_SetDirty(block);
     CALL_BF(BF_UnpinBlock(block));
     SHT->bucket[i].number_of_registries++;
+    if(SHT->bucket[i].local_depth<SHT->global_depth){
+      for(int a=0 ; a<Power(2, SHT->global_depth) ; a++){
+        if(SHT->bucket[i].number_of_block == SHT->bucket[a].number_of_block && a!=i){
+          SHT->bucket[a].number_of_registries++;
+        }
+      }
+    }
     //after updating the directory we store the updated one in the memory
     updateDirectory_SHT(SHT, indexDesc);
 
@@ -462,7 +469,7 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
   //insert code here
   int *hashing, i;
   char *data, *data2;
-  SecondaryRecord temp;
+  SecondaryRecord temp, temp2;
   Secondary_Directory *SHT;
   SHT = (Secondary_Directory *) malloc(sizeof(Secondary_Directory));
   BF_Block *block;
@@ -474,7 +481,7 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
     while(updateArray[z].surname[0]!= '\0'){
       HashFunction_SHT(updateArray[z].surname, SHT->global_depth, &hashing);
 
-      //find in which bucket the record we want to insert should go
+      //find in which bucket the record we want to change its tupleID is
       int counter;
       for(i=0;i<(Power(2,SHT->global_depth));i++){
         counter=0;
@@ -487,17 +494,24 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
           break;
         }
       }
-      CALL_BF(BF_GetBlock(indexDesc, SHT->bucket[i].number_of_block, block));
-      data2 = BF_Block_GetData(block);
+      
       for(int j=0 ; j<SHT->bucket[i].number_of_registries ; j++){
+        CALL_BF(BF_GetBlock(indexDesc, SHT->bucket[i].number_of_block, block));
+        data2 = BF_Block_GetData(block);
         memcpy(&temp, data2+(j*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
-        if((temp.index_key == updateArray[z].surname) && (temp.tupleId = updateArray[z].oldTupleId)){
+        if((strcmp(temp.index_key, updateArray[z].surname) == 0) && (temp.tupleId = updateArray[z].oldTupleId)){
+          //printf("old: %d\n", temp.tupleId);
           temp.tupleId = updateArray[z].newTupleId;
+          // printf("%s==%s  ", temp.index_key, updateArray[z].surname);
+          // printf("%d==%d, old: %d\n", temp.tupleId, updateArray[z].newTupleId, updateArray[z].oldTupleId);
+          memcpy(data2+(j*sizeof(SecondaryRecord)), &temp, sizeof(SecondaryRecord));
+          // memcpy(&temp2, data2+(j*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
+          // printf("%s %d\n", temp2.index_key, temp2.tupleId);
           BF_Block_SetDirty(block);
-          break;
+          CALL_BF(BF_UnpinBlock(block));
         }
       }
-      CALL_BF(BF_UnpinBlock(block));
+      
       z++;
     }
   }
@@ -510,7 +524,7 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
 
 HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
   //insert code here
-  int *hashing, i, blockID=1, index_in_block=0, indexDesc, printed = 0;
+  int *hashing, i, blockID, index_in_block, indexDesc, printed = 0;
   char *data, *data2;
   Secondary_Directory *SHT;
   SHT = (Secondary_Directory *)malloc(sizeof(Secondary_Directory));
@@ -556,10 +570,10 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
     memcpy(temp, data + (j*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
 
     //calculate blockID and index_in_block here...
+    blockID = (temp->tupleId / 8) - 1;
+    index_in_block = temp->tupleId % 8;
 
-    if(temp->index_key == index_key){
-      
-
+    if(strcmp(temp->index_key, index_key) == 0){
       BF_GetBlock(indexDesc, blockID, block2);
       data2 = BF_Block_GetData(block2);
       memcpy(record, data2+(index_in_block*sizeof(Record)), sizeof(Record));
@@ -569,25 +583,9 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
     }
   }
 
-  CALL_BF(BF_CloseFile(indexDesc));
+  //CALL_BF(BF_CloseFile(indexDesc));
   
   BF_UnpinBlock(block);
-  BF_Block *temporary;
-  BF_Block_Init(&temporary);
-  for(i=0 ; i<(Power(2,SHT->global_depth)) ; i++){
-    printf("Number of block: %d, Number of registries: %d\n",SHT->bucket[i].number_of_block,SHT->bucket[i].number_of_registries);
-  }
-  for(i=0 ; i<(Power(2,SHT->global_depth)) ; i++){
-    printf("I: %d\n",i);
-    BF_GetBlock(sindexDesc, SHT->bucket[i].number_of_block , temporary);
-    data2 = BF_Block_GetData(temporary);
-    for(int j=0;j<SHT->bucket[i].number_of_registries;j++){
-      printf("J: %d\n",j);
-      memcpy(temp,data2+(j*sizeof(SecondaryRecord)),sizeof(SecondaryRecord));
-      printf("%d\n",temp->tupleId);
-    }
-  }
-
 
   free(record);
   free(temp);
@@ -596,6 +594,9 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
 
   if(printed == 0){
     printf("No registry found with surname = %s please try again\n", index_key);
+  }
+  else{
+    printf("Records found: %d\n", printed);
   }
 
   return HT_OK;
