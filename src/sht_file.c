@@ -322,12 +322,6 @@ HT_ErrorCode SHT_OpenSecondaryIndex(const char *sfileName, int *indexDesc  ) {
       break;
     }
   }
-  // for(i=0 ; i < MAX_OPEN_FILES ; i++){
-  //   if(Open_files[i].indexdesc == -1){
-  //     Open_files[i].indexdesc = *indexDesc;
-  //     break;
-  //   }
-  // }
   BF_UnpinBlock(temp_block);
   return HT_OK;
 }
@@ -511,7 +505,6 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
           CALL_BF(BF_UnpinBlock(block));
         }
       }
-      
       z++;
     }
   }
@@ -604,7 +597,7 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
 
 HT_ErrorCode SHT_HashStatistics(char *filename ) {
   //insert code here
-  int totalBlocks, *sindexDesc, blocknum;
+  int totalBlocks, sindexDesc, blocknum;
   char *data;
   SecondaryRecord *record;
   record = (SecondaryRecord *) malloc(sizeof(SecondaryRecord));
@@ -613,13 +606,16 @@ HT_ErrorCode SHT_HashStatistics(char *filename ) {
   Secondary_Directory *SHT;
   SHT = (Secondary_Directory *) malloc(sizeof(Secondary_Directory));
 
-  SHT_OpenSecondaryIndex(filename, sindexDesc);
+  CALL_BF(BF_OpenFile(filename, &sindexDesc));
 
-  CALL_BF(BF_GetBlockCounter(*sindexDesc, &blocknum));
+  CALL_BF(BF_GetBlockCounter(sindexDesc, &blocknum));
 
   printf("file %s has a total of %d blocks\n", filename, blocknum);
 
-  int min=100, max=0, sum=0;
+  int min=100, max=0;
+  float sum=0;
+
+  getDirectory_SHT(&SHT, sindexDesc);
 
   for(int i=0 ; i<Power(2, SHT->global_depth) ; i++){
     if(SHT->bucket[i].number_of_registries < min) min = SHT->bucket[i].number_of_registries;
@@ -627,15 +623,87 @@ HT_ErrorCode SHT_HashStatistics(char *filename ) {
     sum = sum + SHT->bucket[i].number_of_registries;
   }
   float avg;
-  avg = (double) (sum/Power(2, SHT->global_depth));
+  avg = (float) (sum/(float) Power(2, SHT->global_depth));
   printf("Minimum registries in a bucket are: %d, Maximum are: %d and average are: %f\n", min, max, avg);
-
 
   return HT_OK;
 }
 
 HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) {
   //insert code here
+  int *hashing;
+  char *data1, *data2;
+  BF_Block *block1, *block2;
+  BF_Block_Init(&block1);
+  BF_Block_Init(&block2);
+
+  Secondary_Directory *SHT1, *SHT2;
+  SHT1 = (Secondary_Directory *) malloc(sizeof(Secondary_Directory));
+  SHT2 = (Secondary_Directory *) malloc(sizeof(Secondary_Directory));
+
+  getDirectory_SHT(&SHT1, sindexDesc1);
+  getDirectory_SHT(&SHT2, sindexDesc2);
+
+  if (index_key != NULL){
+
+    HashFunction_SHT(index_key, SHT1->global_depth, &hashing);
+
+    int counter, i;
+    for(i=0 ; i<(Power(2,SHT1->global_depth)) ; i++){
+      counter=0;
+      for(int j=(SHT1->bucket[i].local_depth)-1;j>=0;j--){
+        if (SHT1->bucket[i].HashCode[j]== hashing[j]){
+          counter++;
+        }
+      }
+      if(counter == SHT1->bucket[i].local_depth){
+        break;
+      }
+    }
+  
+    int j;
+    for(j=0 ; j<(Power(2,SHT2->global_depth)) ; j++){
+      counter=0;
+      for(int z=(SHT2->bucket[i].local_depth)-1;z>=0;z--){
+        if (SHT2->bucket[j].HashCode[z]== hashing[z]){
+          counter++;
+        }
+      }
+      if(counter == SHT2->bucket[j].local_depth){
+        break;
+      }
+    }
+
+    CALL_BF(BF_GetBlock(sindexDesc1, SHT1->bucket[i].number_of_block, block1));
+    CALL_BF(BF_GetBlock(sindexDesc2, SHT2->bucket[j].number_of_block, block2));
+
+    data1 = BF_Block_GetData(block1);
+    data2 = BF_Block_GetData(block2);
+
+    SecondaryRecord temp1, temp2;
+
+    for(int a=0 ; a<SHT1->bucket[i].number_of_registries ; a++){
+      memcpy(&temp1, data1+(a*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
+      if(strcmp(temp1.index_key, index_key) == 0){
+        for(int b=0 ; b<SHT2->bucket[j].number_of_registries ; b++){
+          memcpy(&temp2, data2+(b*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
+          if(strcmp(temp2.index_key, index_key) == 0){
+            printf("nai\n");
+          }
+        }
+      }
+    }
+
+    CALL_BF(BF_UnpinBlock(block1));
+    CALL_BF(BF_UnpinBlock(block2));
+
+    free(SHT1->bucket);
+    free(SHT1);
+    free(SHT2->bucket);
+    free(SHT2);
+
+  }
+
   return HT_OK;
 }
 
