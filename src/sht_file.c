@@ -631,7 +631,7 @@ HT_ErrorCode SHT_HashStatistics(char *filename ) {
 
 HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) {
   //insert code here
-  int *hashing;
+  int *hashing, *hashing2;
   char *data1, *data2;
   BF_Block *block1, *block2;
   BF_Block_Init(&block1);
@@ -702,6 +702,42 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
     free(SHT2->bucket);
     free(SHT2);
 
+  }
+  else{
+
+    int counter;
+    for(int i=0 ; i<Power(2, SHT1->global_depth) ; i++){
+      HashFunction_bucket(SHT1->bucket[i].number_of_block, SHT1->global_depth, &hashing);
+      for(int j=0 ; j<Power(2, SHT2->global_depth) ; j++){
+        HashFunction_bucket(SHT2->bucket[j].number_of_block, SHT2->global_depth, &hashing2);
+        counter = 0;
+        for(int a=0 ; a<SHT1->global_depth ; a++){
+          if(hashing[a] == hashing2[a]){
+            counter++;
+          }
+        }
+        if(counter == SHT1->global_depth){
+          CALL_BF(BF_GetBlock(sindexDesc1, SHT1->bucket[i].number_of_block, block1));
+          CALL_BF(BF_GetBlock(sindexDesc2, SHT2->bucket[j].number_of_block, block2));
+
+          data1 = BF_Block_GetData(block1);
+          data2 = BF_Block_GetData(block2);
+
+          SecondaryRecord temp1, temp2;
+
+          for(int q=0 ; q<SHT1->bucket[i].number_of_registries ; q++){
+            memcpy(&temp1, data1+(q*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
+            for(int w=0 ; w<SHT2->bucket[j].number_of_registries ; w++){
+              memcpy(&temp2, data2+(w*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
+              if(strcmp(temp2.index_key, temp1.index_key) == 0){
+                printf("yei!\n");
+              }
+            }
+          }
+        }
+
+      }
+    }
   }
 
   return HT_OK;

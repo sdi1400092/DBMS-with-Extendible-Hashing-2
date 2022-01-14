@@ -116,7 +116,7 @@ int main() {
   // SHT_CloseSecondaryIndex(indexDesc_for_2nd_dir);
   // SHT_HashStatistics("dir");
 
-  SHT_InnerJoin(indexDesc2_for_2nd_dir, indexDesc_for_2nd_dir, "Oikonomou");
+  SHT_InnerJoin(indexDesc2_for_2nd_dir, indexDesc_for_2nd_dir, NULL);
 
   // printf("RUN PrintAllEntries\n");
   // int id = rand() % RECORDS_NUM;
