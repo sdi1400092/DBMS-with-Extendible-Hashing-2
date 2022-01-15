@@ -70,6 +70,30 @@ void PrintRecord(Record record){
   printf("\n");
 }
 
+void SHT_InnerJoin_print(SecondaryRecord a, SecondaryRecord b,int indesdesc1, int indesdesc2){
+  int blockID1, blockID2,index_in_block1,index_in_block2;
+  char *data1,*data2;
+  Record record1, record2;
+  BF_Block *block1, *block2;
+  BF_Block_Init(&block1);
+  BF_Block_Init(&block2);
+  blockID1= (a.tupleId/8) -1;
+  index_in_block1= a.tupleId%8;
+  blockID2= (b.tupleId/8) -1;
+  index_in_block2= b.tupleId%8;
+  BF_GetBlock(indesdesc1,blockID1,block1);
+  data1= BF_Block_GetData(block1);
+  BF_GetBlock(indesdesc2,blockID2,block2);
+  data2= BF_Block_GetData(block2);
+  memcpy(&record1,data1+(index_in_block1*sizeof(Record)),sizeof(Record));
+  memcpy(&record2,data2+(index_in_block2*sizeof(Record)),sizeof(Record));
+  printf("%s %d %s %s ",record1.surname,record1.id,record1.name,record1.city);
+  printf("%d %s %s\n",record2.id,record2.name,record2.city);
+  BF_UnpinBlock(block1);
+  BF_UnpinBlock(block2);
+
+}
+
 typedef struct{
   char primary_index_name[20];
   int indexdesc;
@@ -632,7 +656,7 @@ HT_ErrorCode SHT_HashStatistics(char *filename ) {
 
 HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) {
   //insert code here
-  int *hashing, *hashing2;
+  int *hashing, *hashing2,indexdesc_primary_index1,indexdesc_primary_index2;
   char *data1, *data2;
   BF_Block *block1, *block2;
   BF_Block_Init(&block1);
@@ -644,6 +668,9 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
 
   getDirectory_SHT(&SHT1, sindexDesc1);
   getDirectory_SHT(&SHT2, sindexDesc2);
+
+  CALL_BF(BF_OpenFile(SHT1->name_of_primary_index,&indexdesc_primary_index1));
+  CALL_BF(BF_OpenFile(SHT2->name_of_primary_index,&indexdesc_primary_index2));
 
   if (index_key != NULL){
 
@@ -689,7 +716,7 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
         for(int b=0 ; b<SHT2->bucket[j].number_of_registries ; b++){
           memcpy(&temp2, data2+(b*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
           if(strcmp(temp2.index_key, index_key) == 0){
-            printf("nai\n");
+            SHT_InnerJoin_print(temp1,temp2,indexdesc_primary_index1,indexdesc_primary_index2);
           }
         }
       }
@@ -712,7 +739,11 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
       for(int j=0 ; j<Power(2, SHT2->global_depth) ; j++){
         HashFunction_bucket(SHT2->bucket[j].number_of_block, SHT2->global_depth, &hashing2);
         counter = 0;
-        for(int a=0 ; a<SHT1->global_depth ; a++){
+        int min= SHT1->global_depth;
+        if(SHT1->global_depth>SHT2->global_depth){
+          min=SHT2->global_depth;
+        }
+        for(int a=0 ; a<min ; a++){
           if(hashing[a] == hashing2[a]){
             counter++;
           }
@@ -731,7 +762,7 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
             for(int w=0 ; w<SHT2->bucket[j].number_of_registries ; w++){
               memcpy(&temp2, data2+(w*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
               if(strcmp(temp2.index_key, temp1.index_key) == 0){
-                printf("yei!\n");
+                SHT_InnerJoin_print(temp1,temp2,indexdesc_primary_index1,indexdesc_primary_index2);
               }
             }
           }

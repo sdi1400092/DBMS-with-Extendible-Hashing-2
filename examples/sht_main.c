@@ -116,12 +116,12 @@ int main() {
   // SHT_CloseSecondaryIndex(indexDesc_for_2nd_dir);
   // SHT_HashStatistics("dir");
 
-  SHT_InnerJoin(indexDesc2_for_2nd_dir, indexDesc_for_2nd_dir, NULL);
+  // SHT_InnerJoin(indexDesc2_for_2nd_dir, indexDesc_for_2nd_dir, NULL);
 
   // printf("RUN PrintAllEntries\n");
   // int id = rand() % RECORDS_NUM;
   // CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
-  // CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
+  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
 
 
   // CALL_OR_DIE(HT_CloseFile(indexDesc));
