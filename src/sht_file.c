@@ -21,6 +21,7 @@
   }                         \
 }
 
+
 typedef struct {
   int *HashCode;
   int number_of_block; //με τη παραδοχη οτι 1 block = 1 καδος
