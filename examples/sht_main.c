@@ -5,7 +5,7 @@
 #include "bf.h"
 #include "hash_file.h"
 
-#define RECORDS_NUM 40// you can change it if you want
+#define RECORDS_NUM 50// you can change it if you want
 #define GLOBAL_DEPT 2 // you can change it if you want
 #define FILE_NAME "data.db"
 #define FILE_NAME2 "data2.db"
@@ -85,27 +85,28 @@ int main() {
   UpdateRecordArray *update_record_array, *update_record_array2;
   srand(12569874);
   int r,tuppleid;
-  // printf("Insert Entries\n");
-  // for (int id = 0; id < RECORDS_NUM; ++id) {
-  //   update_record_array = NULL;
-  //   // create a record
-  //   record.id = id;
-  //   r = rand() % 12;
-  //   memcpy(record.name, names[r], strlen(names[r]) + 1);
-  //   r = rand() % 12;
-  //   memcpy(record.surname, surnames[r], strlen(surnames[r]) + 1);
-  //   r = rand() % 10;
-  //   memcpy(record.city, cities[r], strlen(cities[r]) + 1);
+  printf("\nInsert Entries\n");
+  for (int id = 0; id < RECORDS_NUM; ++id) {
+    update_record_array = NULL;
+    // create a record
+    record.id = id;
+    r = rand() % 12;
+    memcpy(record.name, names[r], strlen(names[r]) + 1);
+    r = rand() % 12;
+    memcpy(record.surname, surnames[r], strlen(surnames[r]) + 1);
+    r = rand() % 10;
+    memcpy(record.city, cities[r], strlen(cities[r]) + 1);
 
-  //   CALL_OR_DIE(HT_InsertEntry(indexDesc, record, &tuppleid, &update_record_array));
-  //   strcpy(secondary_record.index_key,record.surname);
-  //   secondary_record.tupleId=tuppleid;
-  //   CALL_OR_DIE(SHT_SecondaryInsertEntry(indexDesc_for_2nd_dir,secondary_record));
-  //   CALL_OR_DIE(SHT_SecondaryUpdateEntry(indexDesc_for_2nd_dir,update_record_array));
-  // }
+    CALL_OR_DIE(HT_InsertEntry(indexDesc, record, &tuppleid, &update_record_array));
+    strcpy(secondary_record.index_key,record.surname);
+    secondary_record.tupleId=tuppleid;
+    CALL_OR_DIE(SHT_SecondaryInsertEntry(indexDesc_for_2nd_dir,secondary_record));
+    CALL_OR_DIE(SHT_SecondaryUpdateEntry(indexDesc_for_2nd_dir,update_record_array));
+  }
 
+  tuppleid = 0;
   srand(12345);
-  printf("Insert Entries 2\n");
+  printf("\nInsert Entries 2\n");
   for (int id = 0; id < RECORDS_NUM; ++id) {
     update_record_array2 = NULL;
     // create a record
@@ -116,8 +117,7 @@ int main() {
     memcpy(record.surname, surnames[r], strlen(surnames[r]) + 1);
     r = rand() % 10;
     memcpy(record.city, cities[r], strlen(cities[r]) + 1);
-
-    tuppleid = 0;
+    
     CALL_OR_DIE(HT_InsertEntry(indexDesc2, record, &tuppleid, &update_record_array2));
     strcpy(secondary_record.index_key,record.surname);
     secondary_record.tupleId=tuppleid;
@@ -125,16 +125,16 @@ int main() {
     CALL_OR_DIE(SHT_SecondaryUpdateEntry(indexDesc2_for_2nd_dir,update_record_array2));
   }
 
-  // char name[20];
-  // r = rand() % 12;
-  // strcpy(name, surnames[r]);
-  // printf("Finding records with name %s\n", "Oikonomou");
-  // CALL_OR_DIE(SHT_PrintAllEntries(indexDesc_for_2nd_dir, "Oikonomou"));
-  // SHT_CloseSecondaryIndex(indexDesc_for_2nd_dir);
-  // SHT_HashStatistics("dir");
+  char name[20];
+  r = rand() % 12;
+  strcpy(name, surnames[r]);
+  printf("\nFinding records with name %s\n", "Oikonomou");
+  CALL_OR_DIE(SHT_PrintAllEntries(indexDesc2_for_2nd_dir, "Oikonomou"));
+  SHT_CloseSecondaryIndex(indexDesc_for_2nd_dir);
+  SHT_HashStatistics("dir");
 
-  // printf("calling inner join\n");
-  // SHT_InnerJoin(indexDesc_for_2nd_dir, indexDesc2_for_2nd_dir, NULL);
+  printf("\nCALLING INNER JOIN:\n");
+  SHT_InnerJoin(indexDesc_for_2nd_dir, indexDesc2_for_2nd_dir, "Oikonomou");
 
   // printf("RUN PrintAllEntries\n");
   // int id = 15;
