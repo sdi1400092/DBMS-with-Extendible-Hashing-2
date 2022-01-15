@@ -57,22 +57,13 @@ void printRecord(Record record){
   printf("Id: %d\n",record.id);
   int i;
   printf("Name: ");
-  for(i=0;i<15;i++){
-    printf("%c",record.name[i]);
-    //if(record.name[i+1]==NULL) break;
-  }
+  printf("%s",record.name);
   printf("\n");
   printf("Surname: ");
-  for(i=0;i<20;i++){
-    printf("%c",record.surname[i]);
-    //if(record.surname[i+1]==NULL) break;
-  }
+  printf("%s",record.surname);
   printf("\n");
   printf("City: ");
-  for(i=0;i<20;i++){
-    printf("%c",record.city[i]);
-    //if(record.city[i+1]==NULL) break;
-  }
+  printf("%s",record.city);
   printf("\n");
 }
 

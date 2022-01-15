@@ -51,46 +51,50 @@ void PrintRecord(Record record){
   printf("Id: %d\n",record.id);
   int i;
   printf("Name: ");
-  for(i=0;i<15;i++){
-    printf("%c",record.name[i]);
-    //if(record.name[i+1]==NULL) break;
-  }
+  printf("%s",record.name);
   printf("\n");
   printf("Surname: ");
-  for(i=0;i<20;i++){
-    printf("%c",record.surname[i]);
-    //if(record.surname[i+1]==NULL) break;
-  }
+  printf("%s",record.surname);
   printf("\n");
   printf("City: ");
-  for(i=0;i<20;i++){
-    printf("%c",record.city[i]);
-    //if(record.city[i+1]==NULL) break;
-  }
+  printf("%s",record.city);
   printf("\n");
 }
 
-void SHT_InnerJoin_print(SecondaryRecord a, SecondaryRecord b,int indesdesc1, int indesdesc2){
-  int blockID1, blockID2,index_in_block1,index_in_block2;
+void SHT_InnerJoin_print(SecondaryRecord a, SecondaryRecord b, int indesdesc1, int indesdesc2){
+  int blockID1, blockID2, index_in_block1, index_in_block2;
   char *data1,*data2;
-  Record record1, record2;
+
+  Record *record1, *record2;
+  record1 = (Record *) malloc(sizeof(Record));
+  record2 = (Record *) malloc(sizeof(Record));
+
   BF_Block *block1, *block2;
   BF_Block_Init(&block1);
   BF_Block_Init(&block2);
+
   blockID1= (a.tupleId/8) -1;
   index_in_block1= a.tupleId%8;
+
   blockID2= (b.tupleId/8) -1;
   index_in_block2= b.tupleId%8;
-  BF_GetBlock(indesdesc1,blockID1,block1);
+
+  BF_GetBlock(indesdesc1, blockID1, block1);
   data1= BF_Block_GetData(block1);
-  BF_GetBlock(indesdesc2,blockID2,block2);
+
+  BF_GetBlock(indesdesc2, blockID2, block2);
   data2= BF_Block_GetData(block2);
-  memcpy(&record1,data1+(index_in_block1*sizeof(Record)),sizeof(Record));
-  memcpy(&record2,data2+(index_in_block2*sizeof(Record)),sizeof(Record));
-  printf("%s %d %s %s ",record1.surname,record1.id,record1.name,record1.city);
-  printf("%d %s %s\n",record2.id,record2.name,record2.city);
+
+  memcpy(record1, data1+(index_in_block1*sizeof(Record)), sizeof(Record));
+  memcpy(record2, data2+(index_in_block2*sizeof(Record)), sizeof(Record));
+
+  printf("%s %d %s %s ", record1->surname, record1->id, record1->name, record1->city);
+  printf("%s %d %s %s\n", record2->surname, record2->id, record2->name, record2->city);
+
   BF_UnpinBlock(block1);
   BF_UnpinBlock(block2);
+  free(record1);
+  free(record2);
 
 }
 
@@ -413,6 +417,20 @@ HT_ErrorCode SHT_SecondaryInsertEntry (int indexDesc, SecondaryRecord record  ) 
     //after updating the directory we store the updated one in the memory
     updateDirectory_SHT(SHT, indexDesc);
 
+    getDirectory_SHT(&SHT, indexDesc);
+
+    printf("\n\n");
+    for(int a=0 ; a<Power(2, SHT->global_depth) ; a++){
+      BF_GetBlock(indexDesc, SHT->bucket[a].number_of_block, block);
+      data = BF_Block_GetData(block);
+      printf("block %d with %d records:\n", SHT->bucket[a].number_of_block, SHT->bucket[a].number_of_registries);
+      for(int b=0 ; b<SHT->bucket[a].number_of_registries ; b++){
+        memcpy(temp, data+(b*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
+        printf("%s %d\n", temp->index_key, temp->tupleId);
+      }
+    }
+    printf("\n\n");
+
   }
   //if there's no space in that bucket we have two cases
   else{
@@ -461,6 +479,7 @@ HT_ErrorCode SHT_SecondaryInsertEntry (int indexDesc, SecondaryRecord record  ) 
     int x = SHT->bucket[i].number_of_registries;
     SHT->bucket[i].number_of_registries = 0;
 
+
     updateDirectory_SHT(SHT, indexDesc);
 
     //call the insert recursively to reorganize the existing registries of the bucket that got splited
@@ -474,6 +493,20 @@ HT_ErrorCode SHT_SecondaryInsertEntry (int indexDesc, SecondaryRecord record  ) 
     //call insert one last time for the original registry
     SHT_SecondaryInsertEntry(indexDesc, record);
   }
+
+  // getDirectory_SHT(&SHT, indexDesc);
+
+  // printf("\n\n");
+  // for(int a=0 ; a<Power(2, SHT->global_depth) ; a++){
+  //   BF_GetBlock(indexDesc, SHT->bucket[a].number_of_block, block);
+  //   data = BF_Block_GetData(block);
+  //   printf("block %d with %d records:\n", SHT->bucket[a].number_of_block, SHT->bucket[a].number_of_registries);
+  //   for(int b=0 ; b<SHT->bucket[a].number_of_registries ; b++){
+  //     memcpy(temp, data+(b*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
+  //     printf("%s %d\n", temp->index_key, temp->tupleId);
+  //   }
+  // }
+  // printf("\n\n");
 
   BF_Block_SetDirty(block);
   CALL_BF(BF_UnpinBlock(block));
@@ -519,13 +552,8 @@ HT_ErrorCode SHT_SecondaryUpdateEntry (int indexDesc, UpdateRecordArray *updateA
         data2 = BF_Block_GetData(block);
         memcpy(&temp, data2+(j*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
         if((strcmp(temp.index_key, updateArray[z].surname) == 0) && (temp.tupleId = updateArray[z].oldTupleId)){
-          //printf("old: %d\n", temp.tupleId);
           temp.tupleId = updateArray[z].newTupleId;
-          // printf("%s==%s  ", temp.index_key, updateArray[z].surname);
-          // printf("%d==%d, old: %d\n", temp.tupleId, updateArray[z].newTupleId, updateArray[z].oldTupleId);
           memcpy(data2+(j*sizeof(SecondaryRecord)), &temp, sizeof(SecondaryRecord));
-          // memcpy(&temp2, data2+(j*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
-          // printf("%s %d\n", temp2.index_key, temp2.tupleId);
           BF_Block_SetDirty(block);
           CALL_BF(BF_UnpinBlock(block));
         }
@@ -601,6 +629,18 @@ HT_ErrorCode SHT_PrintAllEntries(int sindexDesc, char *index_key ) {
     }
   }
 
+  printf("\n\n");
+  for(int a=0 ; a<Power(2, SHT->global_depth) ; a++){
+    BF_GetBlock(sindexDesc, SHT->bucket[a].number_of_block, block2);
+    data = BF_Block_GetData(block2);
+    printf("block %d with %d records:\n", SHT->bucket[a].number_of_block, SHT->bucket[a].number_of_registries);
+    for(int b=0 ; b<SHT->bucket[a].number_of_registries ; b++){
+      memcpy(temp, data+(b*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
+      printf("%s %d\n", temp->index_key, temp->tupleId);
+    }
+  }
+  printf("\n\n");
+
   //CALL_BF(BF_CloseFile(indexDesc));
   
   BF_UnpinBlock(block);
@@ -669,8 +709,8 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
   getDirectory_SHT(&SHT1, sindexDesc1);
   getDirectory_SHT(&SHT2, sindexDesc2);
 
-  CALL_BF(BF_OpenFile(SHT1->name_of_primary_index,&indexdesc_primary_index1));
-  CALL_BF(BF_OpenFile(SHT2->name_of_primary_index,&indexdesc_primary_index2));
+  CALL_BF(BF_OpenFile(SHT1->name_of_primary_index, &indexdesc_primary_index1));
+  CALL_BF(BF_OpenFile(SHT2->name_of_primary_index, &indexdesc_primary_index2));
 
   if (index_key != NULL){
 
@@ -716,7 +756,9 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
         for(int b=0 ; b<SHT2->bucket[j].number_of_registries ; b++){
           memcpy(&temp2, data2+(b*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
           if(strcmp(temp2.index_key, index_key) == 0){
-            SHT_InnerJoin_print(temp1,temp2,indexdesc_primary_index1,indexdesc_primary_index2);
+            printf("\nSHT1: %s, %d\n", temp1.index_key, temp1.tupleId);
+            printf("SHT2: %s, %d\n", temp2.index_key, temp2.tupleId);
+            SHT_InnerJoin_print(temp1, temp2, indexdesc_primary_index1, indexdesc_primary_index2);
           }
         }
       }
@@ -748,7 +790,7 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
             counter++;
           }
         }
-        if(counter == SHT1->global_depth){
+        if(counter == min){
           CALL_BF(BF_GetBlock(sindexDesc1, SHT1->bucket[i].number_of_block, block1));
           CALL_BF(BF_GetBlock(sindexDesc2, SHT2->bucket[j].number_of_block, block2));
 
@@ -759,10 +801,13 @@ HT_ErrorCode SHT_InnerJoin(int sindexDesc1, int sindexDesc2,  char *index_key ) 
 
           for(int q=0 ; q<SHT1->bucket[i].number_of_registries ; q++){
             memcpy(&temp1, data1+(q*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
+            //printf("\nSHT1: %s, %d\n", temp1.index_key, temp1.tupleId);
             for(int w=0 ; w<SHT2->bucket[j].number_of_registries ; w++){
               memcpy(&temp2, data2+(w*sizeof(SecondaryRecord)), sizeof(SecondaryRecord));
+              //printf("SHT2: %s, %d\n", temp2.index_key, temp2.tupleId);
               if(strcmp(temp2.index_key, temp1.index_key) == 0){
-                SHT_InnerJoin_print(temp1,temp2,indexdesc_primary_index1,indexdesc_primary_index2);
+                //printf("1: %s %d\n2: %s %d\n", temp1.index_key, temp1.tupleId, temp2.index_key, temp2.tupleId);
+                SHT_InnerJoin_print(temp1, temp2, indexdesc_primary_index1, indexdesc_primary_index2);
               }
             }
           }
